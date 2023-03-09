@@ -146,7 +146,7 @@ def main():
 
     # Sphere 1
     density = 1000.0    
-    radius1 = 0.05
+    radius1 = 0.02
     mass1 = sphere_volume(radius1) * density
     color = [1,0,0,1]
     print(f"m1 = {mass1}. w1 = {mass1*g}")
@@ -177,7 +177,7 @@ def main():
     plant.SetFreeBodyPose(
         plant_context, body1, RigidTransform([0, 0, radius1]))
     plant.SetFreeBodyPose(
-        plant_context, body2, RigidTransform([0, 0, 2*radius1+radius2]))
+        plant_context, body2, RigidTransform([-0.000001, 0, 2*radius1+radius2]))
 
     # Publish initial visualization
     simulator = Simulator(diagram, context)
