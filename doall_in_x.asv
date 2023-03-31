@@ -1,0 +1,88 @@
+close all
+clear all
+
+data.dt = 1.0;               % Time step.
+data.x0 = 0.75;                % Initial penetration.
+
+data.k = 1.0;          % Stiffness.
+data.d = 4;          % Hunt & Crossley dissipation.
+data.xe = 1.0;         % Distance to the "stiff core".
+data.lambda = 1;     % Stiff core exponential parameter, dimensionless.
+
+% Print data
+data
+
+
+x = linspace(-0.1, 1.1, 100);
+
+ell = hunt_crossley_discrete_potential_in_x(data, x);
+gamma = gamma_in_x(data, x);
+
+x_diff = 0.5*(x(1:end-1)+x(2:end));
+gamma_diff = -diff(ell)./diff(x);
+
+figure
+plot(x,gamma, x, ell-min(ell), x_diff, gamma_diff,'.');
+legend('gamma','ell', '-dell/dx')
+
+
+% lambda > 0, d > 0
+data.lambda = 1;
+data.d = 4;
+vd = 1/data.d;
+xd = vd * data.dt;
+umin = max(0, data.x0-xd)/data.xe;
+u0 = data.x0/data.xe;
+gamma_s1 = gamma_in_x(data, x);
+
+% lambda > 0, d = 0
+data.lambda = 1;
+data.d = 0;
+vd = 1/data.d;
+xd = vd * data.dt;
+gamma_s2 = gamma_in_x(data, x);
+
+% lambda = 0, d > 0
+data.lambda = 0;
+data.d = 4;
+vd = 1/data.d;
+xd = vd * data.dt;
+gamma_1 = gamma_in_x(data, x);
+
+% lambda = 0, d = 0
+data.lambda = 0;
+data.d = 0;
+vd = 1/data.d;
+xd = vd * data.dt;
+gamma_2 = gamma_in_x(data, x);
+
+
+y_min=-1;
+y_max=8;
+figure
+h=plot(x,gamma_s2, 'k-', ...
+       x,gamma_s1, 'k--', ...
+       x,gamma_2, 'k-', ...
+       x,gamma_1, 'k--', ...
+    [umin umin],[y_min y_max], 'k-',...
+    [u0 u0],[y_min y_max], 'k-');
+set(h,'LineWidth',2)
+set(h(3:4),'LineWidth',2,'Color',[0.5 0.5 0.5])
+set(h(5:6),'LineWidth',1)
+axis([min(x) max(x) y_min y_max])
+
+legend(...
+'\lambda = 1, x_d/x_e=-\infty', ...
+'\lambda = 1, x_d/x_e=0.25',...
+'\lambda = 0, x_d/x_e=-\infty', ...
+'\lambda = 0, x_d/x_e=0.25');
+
+ax = gca;
+
+xticks(ax,[0 0.2000 0.4000 0.5 0.6000 0.75 0.8000 1])
+xticklabels(ax,{'0', 0.2', '0.4', '0.5', '0.6', '0.75 '0.8', '1'})
+
+xlabel('u = x/x_e','FontName','Times', 'FontSize',16)
+ylabel('\gamma/(\deltat k x_e)','FontName','Times', 'FontSize',16)
+set(gca,'FontName','Times','FontSize',16)
+

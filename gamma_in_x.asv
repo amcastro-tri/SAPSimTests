@@ -1,0 +1,26 @@
+function gamma = function ell = hunt_crossley_discrete_potential_in_x(data, x)
+
+% Model parameters.
+k = data.k;            % Stiffness.
+d = data.d;            % Hunt & Crossley dissipation.
+xe = data.xe;          % Distance to the "stiff core".
+lambda = data.lambda;  % Stiff core exponential parameter.
+
+% Discrete stepping parameters
+x0 = data.x0;          % Previous step penetration.
+dt = data.dt;          % Time step.
+
+% Potential is constant for x < x0 - xd, i.e. gamma = 0.
+x = max(x0 - xd, x);
+
+% Dimensionless coordinate.
+u = x/xe;
+
+% Dimensionless parameters.
+b = 1 - d/dt*x0;
+c = d/dt*xe;
+
+ell = (((c*u^2+b*u)*lambda^2+(-2*c*u-b)*lambda+2*c)*e^(u*lambda))/lambda^3;
+
+
+blah
