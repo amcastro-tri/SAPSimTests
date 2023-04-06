@@ -30,7 +30,7 @@ from pydrake.multibody.tree import (
 )
 
 # Systems
-from pydrake.systems.framework import DiagramBuilder
+from pydrake.systems.framework import DiagramBuilder, EventStatus
 from pydrake.systems.analysis import (PrintSimulatorStatistics, Simulator)
 from pydrake.systems.primitives import (
     MatrixGain,    
@@ -52,9 +52,10 @@ def xyz_rpy_deg(xyz, rpy_deg):
 @dataclass
 class ContactProperties:
     stiffness: float
+    hc_dissipation: float
     relaxation_time: float
     friction: float
-    barrier_distance: float = 1.0
+    stiff_core_depth: float = 1.0
     """Barrier distance in meters. Default corresponds to a large value for
     which the contact potential reduces to the compliant model.
     The barrier of two bodies is the sum of each body's barrier distance. """    
@@ -67,9 +68,11 @@ def AddGround(contact_properties, plant):
     properties.AddProperty(
         "material", "point_contact_stiffness", contact_properties.stiffness)
     properties.AddProperty(
+        "material", "hunt_crossley_dissipation", contact_properties.hc_dissipation)        
+    properties.AddProperty(
         "material", "relaxation_time", contact_properties.relaxation_time)
     properties.AddProperty(
-        "material", "barrier_distance", contact_properties.barrier_distance)        
+        "material", "stiff_core_depth", contact_properties.stiff_core_depth)        
     properties.AddProperty(
         "material", "coulomb_friction",
         CoulombFriction(
@@ -94,9 +97,11 @@ def AddSphere(name, mass, radius, contact_properties, color, plant):
     properties.AddProperty(
         "material", "point_contact_stiffness", contact_properties.stiffness)
     properties.AddProperty(
+        "material", "hunt_crossley_dissipation", contact_properties.hc_dissipation)    
+    properties.AddProperty(
         "material", "relaxation_time", contact_properties.relaxation_time)
     properties.AddProperty(
-        "material", "barrier_distance", contact_properties.barrier_distance)        
+        "material", "stiff_core_depth", contact_properties.stiff_core_depth)        
     properties.AddProperty(
         "material", "coulomb_friction",
         CoulombFriction(
@@ -118,7 +123,7 @@ def main():
         help="Desired rate relative to real time.  See documentation for "
              "Simulator::set_target_realtime_rate() for details.")
     parser.add_argument(
-        "--simulation_time", type=float, default=1.0,
+        "--simulation_time", type=float, default=0.02,
         help="Desired duration of the simulation in seconds.")
     parser.add_argument(
         "--time_step", type=float, default=0.01,
@@ -140,13 +145,14 @@ def main():
     g = np.linalg.norm(plant.gravity_field().gravity_vector())
     print(f"g={g}")
     contact_properties = ContactProperties(
-        stiffness=1.0e5, relaxation_time=0.01, friction=1.0)
+        stiffness=1.0e8, hc_dissipation = 5.0,
+        relaxation_time=0.01, friction=1.0, stiff_core_depth=0.001)
 
     AddGround(contact_properties, plant)
 
     # Sphere 1
     density = 1000.0    
-    radius1 = 0.02
+    radius1 = 0.01
     mass1 = sphere_volume(radius1) * density
     color = [1,0,0,1]
     print(f"m1 = {mass1}. w1 = {mass1*g}")
@@ -154,11 +160,19 @@ def main():
 
     # Sphere 2
     density = 1000.0    
-    radius2 = 0.1
+    radius2 = 0.04
     mass = sphere_volume(radius2) * density
     color = [0,1,0,1]
     print(f"m2 = {mass}. w2 = {mass*g}")
     body2 = AddSphere("body2", mass, radius2, contact_properties, color, plant)
+
+    # Sphere 3
+    density = 1000.0    
+    radius3 = 0.16
+    mass = sphere_volume(radius3) * density
+    color = [0,0,1,1]
+    print(f"m3 = {mass}. w3 = {mass*g}")
+    body3 = AddSphere("body3", mass, radius3, contact_properties, color, plant)
 
     plant.Finalize()
 
@@ -176,11 +190,23 @@ def main():
     plant_context = plant.GetMyMutableContextFromRoot(context)
     plant.SetFreeBodyPose(
         plant_context, body1, RigidTransform([0, 0, radius1]))
+    # x2 = -0.000001            
     plant.SetFreeBodyPose(
-        plant_context, body2, RigidTransform([-0.000001, 0, 2*radius1+radius2]))
+         plant_context, body2, RigidTransform([0, 0,
+         2*radius1+radius2]))
+    plant.SetFreeBodyPose(
+         plant_context, body3, RigidTransform([0, 0,
+         2*radius1+2*radius2+radius3]))         
+    
+    def monitor(root_context):
+        plant_context = plant.GetMyMutableContextFromRoot(root_context)
+        X_WB1 = plant.EvalBodyPoseInWorld(plant_context, body1)
+        print(f"p1 = {X_WB1.translation()}")
+        return EventStatus.Succeeded()
 
     # Publish initial visualization
     simulator = Simulator(diagram, context)
+    simulator.set_monitor(monitor=monitor)
     simulator.set_target_realtime_rate(args.target_realtime_rate)
     simulator.Initialize()
 
